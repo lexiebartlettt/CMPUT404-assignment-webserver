@@ -1,6 +1,6 @@
 #  coding: utf-8 
 import SocketServer
-import mimetypes
+import urllib2
 # Copyright 2013 Abram Hindle, Eddie Antonio Santos
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,9 +26,18 @@ import mimetypes
 
 # try: curl -v -X GET http://127.0.0.1:8080/
 
-
 class MyWebServer(SocketServer.BaseRequestHandler):
     
+    def displayfile(self,mimetype):
+        url = self.split_data[1]
+        url = self.url_start + url
+        file_handler = open(url,'rb')
+        response_content = file_handler.read()
+        file_handler.close()
+
+        self.request.send('HTTP/1.1 200 OK\nContent-Type: text/'+mimetype+'\n\n')
+        self.request.send(response_content)
+        return
 
     def handle(self):
         
@@ -38,42 +47,26 @@ class MyWebServer(SocketServer.BaseRequestHandler):
         self.url_start = 'www'
 
         try: 
-            #Default case
-            if (self.split_data[1]=='/'): 
-                self.split_data[1] = '/index.html'
+            #Default cases
+            if (self.split_data[1][-1]=='/'): 
+                self.split_data[1] = self.split_data[1] + 'index.html'
      
             #Deals with html files
             if ("html" in self.split_data[1]): 
-                url = self.split_data[1]
-                url = self.url_start + url
-                print (url)
-                file_handler = open(url,'rb')
-                response_content = file_handler.read()
-                file_handler.close()
-
-                self.request.send('HTTP/1.1 200 OK\nContent-Type: text/html\n\n')
-                self.request.send(response_content)
+                self.displayfile("html")
 
             #deals with CSS files
             elif ("css" in self.data):
-                url = self.split_data[1]
-                url = self.url_start + url
-                print (url)
-                file_handler = open(url,'rb')
-                response_content = file_handler.read()
-                file_handler.close()
-
-                self.request.send('HTTP/1.1 200 OK\nContent-Type: text/css\n\n')
-                self.request.send(response_content)
+                self.displayfile("css")
 
             #deals with files that haven't been found
             else:
-                self.request.send('"HTTP/1.1 404 NOT FOUND\r\n')
-
+		raise IOError
+        
         except IOError: 
-            self.request.send('"HTTP/1.1 404 NOT FOUND\r\n')
-        except IndexError: 
-            print("This got thrown again and I don't know what to do about it")
+            self.request.send('HTTP/1.1 404 NOT FOUND\r\n\r\n')
+
+	
 
 if __name__ == "__main__":
     HOST, PORT = "localhost", 8080
@@ -85,3 +78,4 @@ if __name__ == "__main__":
     # Activate the server; this will keep running until you
     # interrupt the program with Ctrl-C
     server.serve_forever()
+
