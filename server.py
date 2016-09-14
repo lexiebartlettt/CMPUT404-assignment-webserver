@@ -1,6 +1,6 @@
 #  coding: utf-8 
 import SocketServer
-
+import mimetypes
 # Copyright 2013 Abram Hindle, Eddie Antonio Santos
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -29,10 +29,51 @@ import SocketServer
 
 class MyWebServer(SocketServer.BaseRequestHandler):
     
+
     def handle(self):
+        
+        #Set up and split the data to get the URL
         self.data = self.request.recv(1024).strip()
-        print ("Got a request of: %s\n" % self.data)
-        self.request.sendall("OK")
+        self.split_data = self.data.split()
+        self.url_start = 'www'
+
+        try: 
+            #Default case
+            if (self.split_data[1]=='/'): 
+                self.split_data[1] = '/index.html'
+     
+            #Deals with html files
+            if ("html" in self.split_data[1]): 
+                url = self.split_data[1]
+                url = self.url_start + url
+                print (url)
+                file_handler = open(url,'rb')
+                response_content = file_handler.read()
+                file_handler.close()
+
+                self.request.send('HTTP/1.1 200 OK\nContent-Type: text/html\n\n')
+                self.request.send(response_content)
+
+            #deals with CSS files
+            elif ("css" in self.data):
+                url = self.split_data[1]
+                url = self.url_start + url
+                print (url)
+                file_handler = open(url,'rb')
+                response_content = file_handler.read()
+                file_handler.close()
+
+                self.request.send('HTTP/1.1 200 OK\nContent-Type: text/css\n\n')
+                self.request.send(response_content)
+
+            #deals with files that haven't been found
+            else:
+                self.request.send('"HTTP/1.1 404 NOT FOUND\r\n')
+
+        except IOError: 
+            self.request.send('"HTTP/1.1 404 NOT FOUND\r\n')
+        except IndexError: 
+            print("This got thrown again and I don't know what to do about it")
 
 if __name__ == "__main__":
     HOST, PORT = "localhost", 8080
