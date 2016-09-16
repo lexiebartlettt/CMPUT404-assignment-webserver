@@ -1,6 +1,6 @@
 #  coding: utf-8 
 import SocketServer
-import urllib2
+import mimetypes
 # Copyright 2013 Abram Hindle, Eddie Antonio Santos
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,54 +28,54 @@ import urllib2
 
 class MyWebServer(SocketServer.BaseRequestHandler):
     
-    def displayfile(self,mimetype):
-        url = self.split_data[1]
-        url = self.url_start + url
-        file_handler = open(url,'rb')
-        response_content = file_handler.read()
+  def displayfile(self,mimetype):
+    url = self.split_data[1]
+    url = self.url_start + url
+    print (url)
+    file_handler = open(url,'rb')
+    response_content = file_handler.read()
+    file_handler.close()
+
+    self.request.send('HTTP/1.1 200 OK\nContent-Type: text/'+mimetype+'\n\n')
+    self.request.send(response_content)
+    return
+
+  def handle(self):
+    #Set up and split the data to get the URL
+    self.data = self.request.recv(1024).strip()
+    self.split_data = self.data.split()
+    self.url_start = 'www'
+    try: 
+      #Default case
+      if (self.split_data[1][-1]=='/'): 
+        self.split_data[1] = self.split_data[1] + 'index.html'
+      #Deals with html files
+      if ("html" in self.split_data[1]): 
+        self.displayfile("html")
+      #deals with CSS files
+      elif ("css" in self.data):
+        self.displayfile("css")
+      #test redirect
+      else:
+        test301url = self.url_start + self.split_data[1] + "/index.html"
+        file_handler = open(test301url, 'rb')
         file_handler.close()
+        # If that worked, send a 301
+        self.request.send('HTTP/1.1 301 MOVED PERMANENTLY\r\n')
+        self.request.send('Location: ' + self.split_data[1] + "/index.html\r\n")
 
-        self.request.send('HTTP/1.1 200 OK\nContent-Type: text/'+mimetype+'\n\n')
-        self.request.send(response_content)
-        return
-
-    def handle(self):
-        
-        #Set up and split the data to get the URL
-        self.data = self.request.recv(1024).strip()
-        self.split_data = self.data.split()
-        self.url_start = 'www'
-
-        try: 
-            #Default cases
-            if (self.split_data[1][-1]=='/'): 
-                self.split_data[1] = self.split_data[1] + 'index.html'
-     
-            #Deals with html files
-            if ("html" in self.split_data[1]): 
-                self.displayfile("html")
-
-            #deals with CSS files
-            elif ("css" in self.data):
-                self.displayfile("css")
-
-            #deals with files that haven't been found
-            else:
-		raise IOError
-        
-        except IOError: 
-            self.request.send('HTTP/1.1 404 NOT FOUND\r\n\r\n')
-
-	
+    except IOError: 
+      self.request.send('HTTP/1.1 404 NOT FOUND\r\n')
+    except IndexError: 
+      print ""
 
 if __name__ == "__main__":
-    HOST, PORT = "localhost", 8080
+  HOST, PORT = "localhost", 8080
 
-    SocketServer.TCPServer.allow_reuse_address = True
-    # Create the server, binding to localhost on port 8080
-    server = SocketServer.TCPServer((HOST, PORT), MyWebServer)
+  SocketServer.TCPServer.allow_reuse_address = True
+  # Create the server, binding to localhost on port 8080
+  server = SocketServer.TCPServer((HOST, PORT), MyWebServer)
 
-    # Activate the server; this will keep running until you
-    # interrupt the program with Ctrl-C
-    server.serve_forever()
-
+  # Activate the server; this will keep running until you
+  # interrupt the program with Ctrl-C
+  server.serve_forever()
